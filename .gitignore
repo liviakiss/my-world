@@ -1,0 +1,10 @@
+# Python
+.venv/
+__pycache__/
+
+# secrets — never on GitHub
+.env
+
+# frontend (for later)
+node_modules/
+.next/
