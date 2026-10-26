@@ -11,6 +11,14 @@ class MediaType(str, enum.Enum):
     GAME = "game"
 
 
+class EntryStatus(str, enum.Enum):
+    WANT = "want"
+    IN_PROGRESS = "in_progress"
+    FINISHED = "finished"
+    PAUSED = "paused"
+    DROPPED = "dropped"
+
+
 class DataSource(str, enum.Enum):
     # Where a Work's data came from. CUSTOM = typed in by a user.
     TMDB = "tmdb"
