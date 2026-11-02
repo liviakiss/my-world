@@ -3,6 +3,7 @@ from app.models.entry import Entry
 from app.models.enums import (
     DataSource, DatePrecision, EntryStatus, MediaType, SeriesStatus,
 )
+from app.models.refresh_token import RefreshToken
 from app.models.security_event import SecurityEvent, SecurityEventType
 from app.models.series import Series
 from app.models.user import User, UserRole
@@ -11,6 +12,6 @@ from app.models.work import Work
 __all__ = [
     "EVENT_TYPES", "AnalyticsEvent",
     "DataSource", "DatePrecision", "EntryStatus", "MediaType", "SeriesStatus",
-    "Entry", "SecurityEvent", "SecurityEventType",
+    "Entry", "RefreshToken", "SecurityEvent", "SecurityEventType",
     "Series", "User", "UserRole", "Work",
 ]
