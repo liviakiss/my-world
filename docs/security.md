@@ -28,7 +28,10 @@ Living document: what the app protects, how, and why. Updated as features are bu
 ### Brute force
 - 5 failed logins → account locked for 15 minutes; during lockout even the correct password is rejected.
 - Every failure, lockout and success is written to `security_events`.
-- Planned: IP-based rate limiting on auth routes.
+- Per-IP rate limits (sliding window): signup 5/min, login 10/min, refresh 30/min → `429` with `Retry-After`.
+- Account lockout stops guessing one account; rate limiting stops one source guessing many accounts (credential stuffing).
+- Trade-off: an attacker can deliberately lock a victim's account for 15 minutes. Accepted for now; the lock is short and every lock is logged.
+- Limits are kept in memory per server process: fine for one instance, would move to Redis when scaling out.
 
 ### Sessions
 - Short-lived access token (JWT, HS256, 15 min) and long-lived refresh token (random 256-bit, 14 days).
@@ -52,15 +55,26 @@ Living document: what the app protects, how, and why. Updated as features are bu
 - Account deletion cascades to entries, custom works, analytics events and refresh tokens; security events are kept but unlinked (`SET NULL`).
 - Database CHECK constraints enforce valid progress, ratings, note length and date order.
 
+### HTTP hardening
+- Security headers on every response: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`.
+- API responses: `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'` and `Cache-Control: no-store` (personal data is never cached by browsers or proxies).
+- HSTS (2 years) whenever cookies are `Secure`, i.e. in production.
+- CORS allowlist: only configured frontend origins may make credentialed requests.
+- Interactive API docs (`/docs`, `/openapi.json`) are disabled in production.
+
 ### Error handling
 - Validation errors return field + message only, never the submitted value.
 - Database errors return a generic `503`; details stay server-side.
 - External API text is rendered as plain text only (XSS).
 
+## Verification
+- Automated tests (`backend/tests`) prove each control: identical responses for taken/unknown emails, no password echo, lockout, cookie flags, token rotation, reuse detection, forged / expired / `alg: none` JWTs rejected, rate limits, headers and CORS.
+- Tests run against a separate database; the suite refuses to start if it points at the development database.
+- CI on every push: tests against a fresh Postgres, gitleaks (secret scanning, full history), Bandit (static analysis), pip-audit (known-vulnerable dependencies). Dependabot keeps dependencies and actions updated.
+
 ## Known gaps / planned
-- IP rate limiting on `/auth/*`
 - Email verification and password reset
-- Security headers (CSP, HSTS, X-Frame-Options) and CORS allowlist
-- Correct client IP behind the hosting proxy (`--proxy-headers` with trusted proxies)
+- Correct client IP behind the hosting proxy (`--proxy-headers` with trusted proxies) — rate limits and IP hashes depend on it
 - Retention policy for `security_events` (90 days)
-- Automated security tests, CI scanning (gitleaks, Bandit, pip-audit, CodeQL), OWASP ZAP report
+- CodeQL, OWASP ZAP scan against the deployed app, written report
+- Optional 2FA (TOTP)

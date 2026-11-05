@@ -1,5 +1,6 @@
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -7,8 +8,24 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.routers import auth
+from app.security.headers import SecurityHeadersMiddleware
 
-app = FastAPI(title=settings.app_name)
+app = FastAPI(
+    title=settings.app_name,
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None,
+    openapi_url=None if settings.is_production else "/openapi.json",
+)
+
+app.add_middleware(SecurityHeadersMiddleware, enable_hsts=settings.cookie_secure)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Content-Type"],
+)
+
 app.include_router(auth.router)
 
 
@@ -30,6 +47,6 @@ def health():
 def health_db(db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1"))
-        return {"database": "ok"}
     except Exception:
-        raise HTTPException(status_code=503, detail="Database unavailable")
+        raise HTTPException(status_code=503, detail="Database unavailable") from None
+    return {"database": "ok"}

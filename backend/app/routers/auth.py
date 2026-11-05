@@ -12,6 +12,7 @@ from app.auth.tokens import hash_token
 from app.database import get_db
 from app.models import RefreshToken, SecurityEventType, User
 from app.schemas.auth import LoginRequest, MessageResponse, SignupRequest, UserResponse
+from app.security.rate_limit import login_limiter, refresh_limiter, signup_limiter
 from app.services.analytics import track_event
 from app.services.security_log import log_security_event
 from app.services.sessions import issue_tokens, revoke_family
@@ -30,7 +31,12 @@ def _unauthorized(detail: str = "Not authenticated") -> HTTPException:
     return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail)
 
 
-@router.post("/signup", status_code=status.HTTP_202_ACCEPTED, response_model=MessageResponse)
+@router.post(
+    "/signup",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=MessageResponse,
+    dependencies=[Depends(signup_limiter)],
+)
 def signup(payload: SignupRequest, db: Session = Depends(get_db)) -> MessageResponse:
     password_hash = hash_password(payload.password)
 
@@ -50,7 +56,7 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)) -> MessageResp
     return MessageResponse(message=SIGNUP_MESSAGE)
 
 
-@router.post("/login", response_model=UserResponse)
+@router.post("/login", response_model=UserResponse, dependencies=[Depends(login_limiter)])
 def login(
     payload: LoginRequest,
     request: Request,
@@ -92,7 +98,11 @@ def login(
     return user
 
 
-@router.post("/refresh", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/refresh",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(refresh_limiter)],
+)
 def refresh(
     request: Request,
     response: Response,

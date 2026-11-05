@@ -13,8 +13,13 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 14
     cookie_secure: bool = True
+    cors_origins: list[str] = ["http://localhost:3000"]
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
 
 
 settings = Settings()
