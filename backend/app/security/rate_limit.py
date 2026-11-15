@@ -50,8 +50,9 @@ class RateLimiter:
 signup_limiter = RateLimiter(max_requests=5, window_seconds=60)
 login_limiter = RateLimiter(max_requests=10, window_seconds=60)
 refresh_limiter = RateLimiter(max_requests=30, window_seconds=60)
+write_limiter = RateLimiter(max_requests=60, window_seconds=60)
 
-ALL_LIMITERS = (signup_limiter, login_limiter, refresh_limiter)
+ALL_LIMITERS = (signup_limiter, login_limiter, refresh_limiter, write_limiter)
 
 
 def reset_rate_limits() -> None:

@@ -48,6 +48,15 @@ Living document: what the app protects, how, and why. Updated as features are bu
 - `alembic.ini` contains no credentials.
 - Database connection requires TLS (`sslmode=require`) and channel binding.
 
+### Authorization (shelf data)
+- Every shelf query is scoped by the logged-in user's ID inside the SQL `WHERE` clause (`Entry.user_id == user.id`), never filtered afterwards in Python.
+- Another user's entry returns `404 Not Found`, not `403 Forbidden`: the API does not confirm that the ID exists (protects against IDOR probing).
+- Custom works are private to their creator; catalogue works (from public APIs) are visible to everyone.
+- Request bodies use explicit schemas with `extra="forbid"`: fields such as `user_id`, `created_by_user_id` or `cover_url` cannot be smuggled in (mass assignment).
+- Users cannot set `cover_url` on custom works, so no attacker-chosen URLs are stored or loaded by other browsers.
+- Write endpoints are rate limited (60/min) and each user can create at most 1,000 custom works, so one account cannot flood the database.
+- Input limits mirror the database CHECK constraints (rating 0.5–5 in half steps, progress ≥ 0 and ≤ the work's size, notes ≤ 5,000 characters, finish date not before start date): the API rejects bad data with a clear `422`, the database is the safety net.
+
 ### Data protection
 - UUID primary keys (no ID enumeration).
 - IP addresses stored only as HMAC-SHA256 with a server secret (GDPR; a plain hash of an IPv4 address could be brute-forced).
@@ -68,7 +77,7 @@ Living document: what the app protects, how, and why. Updated as features are bu
 - External API text is rendered as plain text only (XSS).
 
 ## Verification
-- Automated tests (`backend/tests`) prove each control: identical responses for taken/unknown emails, no password echo, lockout, cookie flags, token rotation, reuse detection, forged / expired / `alg: none` JWTs rejected, rate limits, headers and CORS.
+- Automated tests (`backend/tests`) prove each control: one user cannot read, change, delete or shelve another user's data, identical responses for taken/unknown emails, no password echo, lockout, cookie flags, token rotation, reuse detection, forged / expired / `alg: none` JWTs rejected, rate limits, headers and CORS.
 - Tests run against a separate database; the suite refuses to start if it points at the development database.
 - CI on every push: tests against a fresh Postgres, gitleaks (secret scanning, full history), Bandit (static analysis), pip-audit (known-vulnerable dependencies). Dependabot keeps dependencies and actions updated.
 
