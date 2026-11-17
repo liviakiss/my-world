@@ -5,7 +5,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.models import EntryStatus
+from app.models import EntryStatus, MediaType
 from app.models.entry import NOTES_MAX_LENGTH
 from app.schemas.works import WorkSummary
 
@@ -20,6 +20,13 @@ class EntryCreate(BaseModel):
 
     work_id: uuid.UUID
     status: EntryStatus = EntryStatus.WANT
+
+
+class SpinRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    media_type: MediaType | None = None
+    include_paused: bool = False
 
 
 class EntryUpdate(BaseModel):

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.routers import auth, catalogue, entries, works
+from app.routers import auth, catalogue, entries, stats, works
 from app.security.headers import SecurityHeadersMiddleware
 
 app = FastAPI(
@@ -30,6 +30,7 @@ app.include_router(auth.router)
 app.include_router(works.router)
 app.include_router(entries.router)
 app.include_router(catalogue.router)
+app.include_router(stats.router)
 
 
 @app.exception_handler(RequestValidationError)

@@ -1,14 +1,14 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, contains_eager
 
 from app.auth.dependencies import get_current_user
 from app.database import get_db
 from app.models import Entry, EntryStatus, MediaType, User, Work
-from app.schemas.entries import EntryCreate, EntryResponse, EntryUpdate
+from app.schemas.entries import EntryCreate, EntryResponse, EntryUpdate, SpinRequest
 from app.security.rate_limit import write_limiter
 from app.services.analytics import track_event
 from app.services.shelf import apply_status_side_effects, get_own_entry, get_visible_work
@@ -83,6 +83,38 @@ def list_entries(
 
     query = query.order_by(Entry.updated_at.desc(), Entry.id).limit(limit).offset(offset)
     return list(db.scalars(query).all())
+
+
+@router.post("/spin", response_model=EntryResponse, dependencies=[Depends(write_limiter)])
+def spin_the_wheel(
+    payload: SpinRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Entry:
+    statuses = [EntryStatus.WANT]
+    if payload.include_paused:
+        statuses.append(EntryStatus.PAUSED)
+
+    query = (
+        select(Entry)
+        .join(Entry.work)
+        .options(contains_eager(Entry.work))
+        .where(Entry.user_id == user.id, Entry.status.in_(statuses))
+    )
+    if payload.media_type is not None:
+        query = query.where(Work.media_type == payload.media_type)
+
+    entry = db.scalars(query.order_by(func.random()).limit(1)).first()
+    if entry is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nothing on your shelf matches. Add something you want to start first.",
+        )
+
+    media_type = payload.media_type.value if payload.media_type else "any"
+    track_event(db, user.id, "spin_wheel_used", media_type=media_type)
+    db.commit()
+    return entry
 
 
 @router.get("/{entry_id}", response_model=EntryResponse)

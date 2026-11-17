@@ -55,6 +55,8 @@ Living document: what the app protects, how, and why. Updated as features are bu
 - Custom works are private to their creator; catalogue works (from public APIs) are visible to everyone.
 - Request bodies use explicit schemas with `extra="forbid"`: fields such as `user_id`, `created_by_user_id` or `cover_url` cannot be smuggled in (mass assignment).
 - Users cannot set `cover_url` on custom works, so no attacker-chosen URLs are stored or loaded by other browsers.
+- Personal statistics are computed only from rows filtered by the logged-in user's ID; the one raw SQL query uses a bound parameter (`:user_id`), never string formatting.
+- The spin wheel picks only from the user's own entries.
 - Write endpoints are rate limited (60/min) and each user can create at most 1,000 custom works, so one account cannot flood the database.
 - Input limits mirror the database CHECK constraints (rating 0.5–5 in half steps, progress ≥ 0 and ≤ the work's size, notes ≤ 5,000 characters, finish date not before start date): the API rejects bad data with a clear `422`, the database is the safety net.
 

@@ -3,7 +3,7 @@ import uuid
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models import DataSource, MediaType, Work
+from app.models import DataSource, Entry, EntryStatus, MediaType, Work
 
 TEST_PASSWORD = "correct-horse-battery-staple"
 
@@ -36,3 +36,14 @@ def add_catalogue_work(
     db.add(work)
     db.commit()
     return work
+
+
+def current_user_id(client: TestClient) -> uuid.UUID:
+    return uuid.UUID(client.get("/auth/me").json()["id"])
+
+
+def add_entry(db, user_id: uuid.UUID, work: Work, status: EntryStatus, **fields) -> Entry:
+    entry = Entry(user_id=user_id, work_id=work.id, status=status, **fields)
+    db.add(entry)
+    db.commit()
+    return entry
