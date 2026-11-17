@@ -43,6 +43,7 @@ Living document: what the app protects, how, and why. Updated as features are bu
 - JWTs are decoded with a fixed algorithm list (prevents `alg: none` / algorithm confusion) and required claims.
 
 ### Secrets and configuration
+- Tests use short tracebacks (`--tb=short`): full tracebacks print function arguments, which once showed a database password in local test output.
 - All secrets in environment variables, typed as `SecretStr` (masked in logs and errors).
 - App refuses to start if a secret is missing or shorter than 32 characters (fail fast).
 - `alembic.ini` contains no credentials.
@@ -56,6 +57,16 @@ Living document: what the app protects, how, and why. Updated as features are bu
 - Users cannot set `cover_url` on custom works, so no attacker-chosen URLs are stored or loaded by other browsers.
 - Write endpoints are rate limited (60/min) and each user can create at most 1,000 custom works, so one account cannot flood the database.
 - Input limits mirror the database CHECK constraints (rating 0.5–5 in half steps, progress ≥ 0 and ≤ the work's size, notes ≤ 5,000 characters, finish date not before start date): the API rejects bad data with a clear `422`, the database is the safety net.
+
+### External data (catalogue search)
+- The server only ever calls fixed hosts (`openlibrary.org`, `api.themoviedb.org`); users never supply a URL, so the API cannot be used to reach internal addresses (SSRF).
+- Redirects are not followed, every request has a 5-second timeout and responses over 2 MB are refused.
+- IDs sent to upstream APIs are checked against strict patterns first (`OL123W`, `tv:123`), so input like `../../admin` never reaches a URL path.
+- Everything that comes back is treated as untrusted: HTML tags stripped, text trimmed to column limits, lists capped, numbers range-checked, cover URLs rebuilt by the server and accepted only as `https` on the provider's image host.
+- The TMDB token is sent in the `Authorization` header, never in the URL, so it does not end up in access logs.
+- Search requires login and is rate limited (30/min) to protect the shared API quota.
+- Upstream failures return a generic `502`; the details go to the server log only.
+- Imported works are cached in the database and shared, so each title is fetched from the provider once.
 
 ### Data protection
 - UUID primary keys (no ID enumeration).
@@ -79,6 +90,7 @@ Living document: what the app protects, how, and why. Updated as features are bu
 ## Verification
 - Automated tests (`backend/tests`) prove each control: one user cannot read, change, delete or shelve another user's data, identical responses for taken/unknown emails, no password echo, lockout, cookie flags, token rotation, reuse detection, forged / expired / `alg: none` JWTs rejected, rate limits, headers and CORS.
 - Tests run against a separate database; the suite refuses to start if it points at the development database.
+- Supply chain incident (Nov 2026): pip-audit in CI flagged CVE-2026-128089 (`dnspython`) and CVE-2026-126360 (`opentelemetry-api`), both transitive dependencies; fixed by upgrading to the patched versions.
 - CI on every push: tests against a fresh Postgres, gitleaks (secret scanning, full history), Bandit (static analysis), pip-audit (known-vulnerable dependencies). Dependabot keeps dependencies and actions updated.
 
 ## Known gaps / planned

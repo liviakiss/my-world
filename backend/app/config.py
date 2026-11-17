@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     cookie_secure: bool = True
     cors_origins: list[str] = ["http://localhost:3000"]
 
+    tmdb_api_token: SecretStr | None = None
+    catalogue_user_agent: str = "MyWorld/0.1 (+https://github.com/liviakiss/my-world)"
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property
