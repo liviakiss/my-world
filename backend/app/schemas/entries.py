@@ -59,4 +59,5 @@ class EntryResponse(BaseModel):
     finished_on: date | None
     created_at: datetime
     updated_at: datetime
+    waiting: bool
     work: WorkSummary

@@ -70,6 +70,13 @@ Living document: what the app protects, how, and why. Updated as features are bu
 - Upstream failures return a generic `502`; the details go to the server log only.
 - Imported works are cached in the database and shared, so each title is fetched from the provider once.
 
+### Release tracking job
+- Runs as a separate command (`python -m app.jobs.check_releases`), not inside a web request, so slow providers never block users.
+- Checks each followed title at most once every 20 hours and in batches of 200, regardless of how many users follow it: the provider quota grows with the number of titles, not users.
+- One failing title is logged and skipped; the job commits after each title, so a crash halfway keeps the work already done.
+- A user's own release date always wins over a found one; the found date is only shown as a suggestion.
+- Follows are scoped to the logged-in user like shelf entries (404 for anyone else's), capped at 500 per user, and removed when the account is deleted.
+
 ### Data protection
 - UUID primary keys (no ID enumeration).
 - IP addresses stored only as HMAC-SHA256 with a server secret (GDPR; a plain hash of an IPv4 address could be brute-forced).

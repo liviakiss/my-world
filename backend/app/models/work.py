@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text,
+    Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text,
     UniqueConstraint, func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -66,6 +66,9 @@ class Work(Base):
         ForeignKey("series.id", ondelete="SET NULL"), index=True
     )
     series_position: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+
+    is_ongoing: Mapped[bool | None] = mapped_column(Boolean)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

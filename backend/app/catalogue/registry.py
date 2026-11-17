@@ -1,11 +1,11 @@
 from functools import lru_cache
 
-from app.catalogue.base import CatalogueAdapter
+from app.catalogue.base import CatalogueAdapter, ReleaseChecker
 from app.catalogue.http import create_client
 from app.catalogue.open_library import OpenLibraryAdapter
 from app.catalogue.tmdb import TmdbAdapter
 from app.config import settings
-from app.models import MediaType
+from app.models import DataSource, MediaType
 
 
 class Catalogue:
@@ -28,3 +28,10 @@ def get_catalogue() -> Catalogue:
         tmdb = TmdbAdapter(client, settings.tmdb_api_token.get_secret_value())
         adapters.update({MediaType.MOVIE: tmdb, MediaType.TV: tmdb, MediaType.ANIME: tmdb})
     return Catalogue(adapters)
+
+
+def get_release_checkers() -> dict[DataSource, ReleaseChecker]:
+    if settings.tmdb_api_token is None:
+        return {}
+    client = create_client(settings.catalogue_user_agent)
+    return {DataSource.TMDB: TmdbAdapter(client, settings.tmdb_api_token.get_secret_value())}

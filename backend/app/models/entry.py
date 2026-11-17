@@ -47,6 +47,13 @@ class Entry(Base):
 
     work: Mapped[Work] = relationship()
 
+    @property
+    def waiting(self) -> bool:
+        if not self.work.is_ongoing:
+            return False
+        caught_up = self.work.total_units is not None and self.progress >= self.work.total_units
+        return self.status == EntryStatus.FINISHED or caught_up
+
     __table_args__ = (
         UniqueConstraint("user_id", "work_id", name="uq_entries_user_work"),
         Index("ix_entries_user_status", "user_id", "status"),

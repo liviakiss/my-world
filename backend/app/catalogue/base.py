@@ -22,6 +22,16 @@ class CatalogueItem:
     total_units: int | None = None
     release_date: date | None = None
     release_date_precision: DatePrecision = DatePrecision.UNKNOWN
+    is_ongoing: bool | None = None
+
+
+@dataclass(frozen=True)
+class ReleaseInfo:
+    is_ongoing: bool | None
+    total_units: int | None = None
+    next_label: str | None = None
+    next_date: date | None = None
+    next_precision: DatePrecision = DatePrecision.UNKNOWN
 
 
 class CatalogueAdapter(Protocol):
@@ -30,3 +40,9 @@ class CatalogueAdapter(Protocol):
     def search(self, query: str, media_type: MediaType) -> list[CatalogueItem]: ...
 
     def fetch(self, external_id: str, media_type: MediaType) -> CatalogueItem | None: ...
+
+
+class ReleaseChecker(Protocol):
+    source: DataSource
+
+    def release_info(self, external_id: str) -> ReleaseInfo | None: ...

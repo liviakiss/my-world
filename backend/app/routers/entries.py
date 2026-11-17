@@ -11,6 +11,7 @@ from app.models import Entry, EntryStatus, MediaType, User, Work
 from app.schemas.entries import EntryCreate, EntryResponse, EntryUpdate, SpinRequest
 from app.security.rate_limit import write_limiter
 from app.services.analytics import track_event
+from app.services.follows import ensure_follow
 from app.services.shelf import apply_status_side_effects, get_own_entry, get_visible_work
 
 router = APIRouter(prefix="/entries", tags=["shelf"])
@@ -52,6 +53,9 @@ def add_entry(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="This work is already on your shelf."
         ) from None
+
+    if work.is_ongoing:
+        ensure_follow(db, user.id, work)
 
     media_type = work.media_type.value
     track_event(db, user.id, "item_added", media_type=media_type, status=entry.status.value)
