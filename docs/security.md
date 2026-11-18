@@ -25,6 +25,14 @@ Living document: what the app protects, how, and why. Updated as features are bu
 - Login returns the same `401 Invalid email or password.` for unknown email, wrong password and locked account.
 - Timing is equalized: signup always hashes; login runs a dummy Argon2 verification when there is no real hash to check.
 
+### Email verification
+- Signup sends a confirmation link; the token is 256 random bits, stored only as a SHA-256 hash, valid for 24 hours and usable once.
+- Asking for a new link invalidates every older one.
+- Signing up with an email that already has an account sends that owner a warning email instead of a link, so the API response stays identical (no account enumeration) and only the inbox owner learns the truth.
+- Emails are sent in a background task after the response, so response time does not reveal which branch ran, and an email provider outage never breaks signup.
+- The link opens a frontend page that POSTs the token; a GET would let email security scanners that pre-open links consume tokens.
+- Reminder emails go only to verified addresses, so the app cannot be used to send mail to someone else's inbox.
+
 ### Brute force
 - 5 failed logins → account locked for 15 minutes; during lockout even the correct password is rejected.
 - Every failure, lockout and success is written to `security_events`.
@@ -69,6 +77,12 @@ Living document: what the app protects, how, and why. Updated as features are bu
 - Search requires login and is rate limited (30/min) to protect the shared API quota.
 - Upstream failures return a generic `502`; the details go to the server log only.
 - Imported works are cached in the database and shared, so each title is fetched from the provider once.
+
+### Reminder emails
+- Plain-text only: titles from external catalogues are never rendered as HTML in emails.
+- Subjects are forced onto one line, so a title containing line breaks cannot add email headers (header injection).
+- Each reminder is recorded in `notifications` with a unique key, so it is sent at most once per release even if the job runs repeatedly; a failed send is not recorded and is retried on the next run.
+- Users can switch reminder emails off at any time; production refuses to start without a real email provider configured, and the provider key is sent in a header.
 
 ### Release tracking job
 - Runs as a separate command (`python -m app.jobs.check_releases`), not inside a web request, so slow providers never block users.

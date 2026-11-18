@@ -52,8 +52,16 @@ login_limiter = RateLimiter(max_requests=10, window_seconds=60)
 refresh_limiter = RateLimiter(max_requests=30, window_seconds=60)
 write_limiter = RateLimiter(max_requests=60, window_seconds=60)
 search_limiter = RateLimiter(max_requests=30, window_seconds=60)
+email_token_limiter = RateLimiter(max_requests=10, window_seconds=60)
 
-ALL_LIMITERS = (signup_limiter, login_limiter, refresh_limiter, write_limiter, search_limiter)
+ALL_LIMITERS = (
+    signup_limiter,
+    login_limiter,
+    refresh_limiter,
+    write_limiter,
+    search_limiter,
+    email_token_limiter,
+)
 
 
 def reset_rate_limits() -> None:

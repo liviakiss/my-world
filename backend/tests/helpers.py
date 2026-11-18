@@ -1,11 +1,34 @@
+import re
 import uuid
 
 from fastapi.testclient import TestClient
 
+from app.mailer.sender import EmailError, EmailMessage
 from app.main import app
-from app.models import DataSource, Entry, EntryStatus, MediaType, Work
+from app.models import DataSource, Entry, EntryStatus, MediaType, User, Work
 
 TEST_PASSWORD = "correct-horse-battery-staple"
+TOKEN_IN_LINK = re.compile(r"token=([A-Za-z0-9_%-]+)")
+
+
+class FakeEmailSender:
+    def __init__(self, fail: bool = False) -> None:
+        self.sent: list[EmailMessage] = []
+        self.fail = fail
+
+    def send(self, message: EmailMessage) -> None:
+        if self.fail:
+            raise EmailError("provider down")
+        self.sent.append(message)
+
+    def to(self, address: str) -> list[EmailMessage]:
+        return [message for message in self.sent if message.to == address]
+
+
+def token_from(message: EmailMessage) -> str:
+    match = TOKEN_IN_LINK.search(message.text)
+    assert match is not None, "no link with a token in this email"
+    return match.group(1)
 
 
 def signup(client: TestClient, email: str, password: str = TEST_PASSWORD):
@@ -47,3 +70,9 @@ def add_entry(db, user_id: uuid.UUID, work: Work, status: EntryStatus, **fields)
     db.add(entry)
     db.commit()
     return entry
+
+
+def mark_verified(db, email: str) -> None:
+    user = db.query(User).filter(User.email == email).one()
+    user.is_email_verified = True
+    db.commit()

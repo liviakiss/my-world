@@ -26,8 +26,10 @@ from sqlalchemy import text  # noqa: E402
 
 import app.models  # noqa: E402, F401
 from app.database import Base, SessionLocal, engine  # noqa: E402
+from app.mailer.sender import get_email_sender  # noqa: E402
 from app.main import app  # noqa: E402
 from app.security.rate_limit import reset_rate_limits  # noqa: E402
+from tests.helpers import FakeEmailSender  # noqa: E402
 
 @pytest.fixture(scope="session", autouse=True)
 def migrated_database():
@@ -58,3 +60,10 @@ def db():
     yield session
     session.close()
 
+
+@pytest.fixture(autouse=True)
+def outbox() -> FakeEmailSender:
+    sender = FakeEmailSender()
+    app.dependency_overrides[get_email_sender] = lambda: sender
+    yield sender
+    app.dependency_overrides.pop(get_email_sender, None)

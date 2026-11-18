@@ -1,6 +1,15 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Cookie,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -10,10 +19,23 @@ from app.auth.dependencies import get_current_user
 from app.auth.passwords import hash_password, verify_password
 from app.auth.tokens import hash_token
 from app.database import get_db
-from app.models import RefreshToken, SecurityEventType, User
+from app.mailer import templates
+from app.mailer.sender import EmailSender, get_email_sender, send_quietly
+from app.models import RefreshToken, SecurityEventType, TokenPurpose, User
+from app.schemas.account import VerifyEmailRequest
 from app.schemas.auth import LoginRequest, MessageResponse, SignupRequest, UserResponse
-from app.security.rate_limit import login_limiter, refresh_limiter, signup_limiter
+from app.security.rate_limit import (
+    email_token_limiter,
+    login_limiter,
+    refresh_limiter,
+    signup_limiter,
+)
 from app.services.analytics import track_event
+from app.services.email_tokens import (
+    VERIFY_EMAIL_LIFETIME,
+    consume_email_token,
+    issue_email_token,
+)
 from app.services.security_log import log_security_event
 from app.services.sessions import issue_tokens, revoke_family
 
@@ -21,6 +43,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 SIGNUP_MESSAGE = "If this email can be registered, you will receive a confirmation email shortly."
 LOGIN_FAILED_MESSAGE = "Invalid email or password."
+INVALID_LINK_MESSAGE = "This link is invalid or has expired."
 MAX_FAILED_LOGINS = 5
 LOCKOUT_DURATION = timedelta(minutes=15)
 
@@ -37,23 +60,69 @@ def _unauthorized(detail: str = "Not authenticated") -> HTTPException:
     response_model=MessageResponse,
     dependencies=[Depends(signup_limiter)],
 )
-def signup(payload: SignupRequest, db: Session = Depends(get_db)) -> MessageResponse:
+def signup(
+    payload: SignupRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    sender: EmailSender = Depends(get_email_sender),
+) -> MessageResponse:
     password_hash = hash_password(payload.password)
 
-    email_taken = db.scalar(select(User.id).where(User.email == payload.email))
-    if email_taken:
+    existing = db.scalar(select(User).where(User.email == payload.email))
+    if existing is not None:
+        message = templates.signup_attempt_for_existing_account(existing.email)
+        background_tasks.add_task(send_quietly, sender, message)
         return MessageResponse(message=SIGNUP_MESSAGE)
 
     user = User(email=payload.email, password_hash=password_hash)
     db.add(user)
     try:
         db.flush()
+        token = issue_email_token(db, user.id, TokenPurpose.VERIFY_EMAIL, VERIFY_EMAIL_LIFETIME)
         track_event(db, user.id, "user_signed_up")
         db.commit()
     except IntegrityError:
         db.rollback()
+        return MessageResponse(message=SIGNUP_MESSAGE)
 
+    background_tasks.add_task(send_quietly, sender, templates.verify_email(payload.email, token))
     return MessageResponse(message=SIGNUP_MESSAGE)
+
+
+@router.post(
+    "/verify-email",
+    response_model=MessageResponse,
+    dependencies=[Depends(email_token_limiter)],
+)
+def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)) -> MessageResponse:
+    stored = consume_email_token(db, payload.token, TokenPurpose.VERIFY_EMAIL)
+    if stored is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=INVALID_LINK_MESSAGE)
+
+    user = db.get(User, stored.user_id)
+    user.is_email_verified = True
+    db.commit()
+    return MessageResponse(message="Your email is confirmed.")
+
+
+@router.post(
+    "/resend-verification",
+    response_model=MessageResponse,
+    dependencies=[Depends(email_token_limiter)],
+)
+def resend_verification(
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    sender: EmailSender = Depends(get_email_sender),
+) -> MessageResponse:
+    if user.is_email_verified:
+        return MessageResponse(message="Your email is already confirmed.")
+
+    token = issue_email_token(db, user.id, TokenPurpose.VERIFY_EMAIL, VERIFY_EMAIL_LIFETIME)
+    db.commit()
+    background_tasks.add_task(send_quietly, sender, templates.verify_email(user.email, token))
+    return MessageResponse(message="We sent you a new confirmation link.")
 
 
 @router.post("/login", response_model=UserResponse, dependencies=[Depends(login_limiter)])

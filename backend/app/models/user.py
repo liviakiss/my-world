@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, Integer, String, false, func
+from sqlalchemy import Boolean, DateTime, Enum, Integer, String, false, func, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -31,8 +31,8 @@ class User(Base):
             # store the VALUES ("user"), not the NAMES ("USER") → SQL queries match Python
             values_callable=lambda enum_cls: [member.value for member in enum_cls],
         ),
-        default=UserRole.USER,                  
-        server_default=UserRole.USER.value,    
+        default=UserRole.USER,
+        server_default=UserRole.USER.value,
     )
 
     is_email_verified: Mapped[bool] = mapped_column(
@@ -43,6 +43,11 @@ class User(Base):
         Integer, default=0, server_default="0"
     )
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    notify_email: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    notify_day_before: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false()
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
