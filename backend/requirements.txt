@@ -57,7 +57,7 @@ PyYAML==6.0.3
 requests==2.34.2
 rich==15.0.0
 sortedcontainers==2.4.0
-SQLAlchemy==2.1.4
+SQLAlchemy==2.1.8
 starlette==1.7.0
 stevedore==5.9.1
 tomli==2.5.0
