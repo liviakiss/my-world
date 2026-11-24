@@ -12,6 +12,7 @@ from app.models.enums import enum_values
 class TokenPurpose(str, enum.Enum):
     VERIFY_EMAIL = "verify_email"
     RESET_PASSWORD = "reset_password"
+    CHANGE_EMAIL = "change_email"
 
 
 class EmailToken(Base):
@@ -25,6 +26,7 @@ class EmailToken(Base):
         Enum(TokenPurpose, native_enum=False, length=30, values_callable=enum_values)
     )
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    new_email: Mapped[str | None] = mapped_column(String(320))
 
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

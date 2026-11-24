@@ -53,6 +53,8 @@ refresh_limiter = RateLimiter(max_requests=30, window_seconds=60)
 write_limiter = RateLimiter(max_requests=60, window_seconds=60)
 search_limiter = RateLimiter(max_requests=30, window_seconds=60)
 email_token_limiter = RateLimiter(max_requests=10, window_seconds=60)
+sensitive_limiter = RateLimiter(max_requests=5, window_seconds=60)
+export_limiter = RateLimiter(max_requests=3, window_seconds=60)
 
 ALL_LIMITERS = (
     signup_limiter,
@@ -61,6 +63,8 @@ ALL_LIMITERS = (
     write_limiter,
     search_limiter,
     email_token_limiter,
+    sensitive_limiter,
+    export_limiter,
 )
 
 

@@ -9,10 +9,16 @@ from app.auth.tokens import hash_token
 from app.models import EmailToken, TokenPurpose
 
 VERIFY_EMAIL_LIFETIME = timedelta(hours=24)
+RESET_PASSWORD_LIFETIME = timedelta(minutes=30)
+CHANGE_EMAIL_LIFETIME = timedelta(hours=1)
 
 
 def issue_email_token(
-    db: Session, user_id: uuid.UUID, purpose: TokenPurpose, lifetime: timedelta
+    db: Session,
+    user_id: uuid.UUID,
+    purpose: TokenPurpose,
+    lifetime: timedelta,
+    new_email: str | None = None,
 ) -> str:
     now = datetime.now(timezone.utc)
     db.execute(
@@ -30,6 +36,7 @@ def issue_email_token(
             user_id=user_id,
             purpose=purpose,
             token_hash=hash_token(token),
+            new_email=new_email,
             expires_at=now + lifetime,
         )
     )

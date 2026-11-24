@@ -18,6 +18,10 @@ class SecurityEventType(str, enum.Enum):
     PASSWORD_RESET_REQUESTED = "password_reset_requested"
     EMAIL_CHANGED = "email_changed"
     REFRESH_TOKEN_REUSED = "refresh_token_reused"   # strong sign of a stolen token
+    REAUTH_FAILED = "reauth_failed"
+    EMAIL_CHANGE_REQUESTED = "email_change_requested"
+    SESSIONS_REVOKED = "sessions_revoked"
+    ACCOUNT_DELETED = "account_deleted"
 
 
 class SecurityEvent(Base):

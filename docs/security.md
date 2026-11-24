@@ -33,6 +33,15 @@ Living document: what the app protects, how, and why. Updated as features are bu
 - The link opens a frontend page that POSTs the token; a GET would let email security scanners that pre-open links consume tokens.
 - Reminder emails go only to verified addresses, so the app cannot be used to send mail to someone else's inbox.
 
+### Account lifecycle
+- **Password reset**: the same answer whether or not the email has an account; the link is valid for 30 minutes, works once, and is useless for anything else (tokens carry a purpose). Completing a reset logs out every session, clears any lockout and emails a "password changed" notice.
+- **Re-authentication**: changing the password or email and deleting the account all require the current password, even with a valid session. A stolen session alone cannot take over or destroy an account; failed attempts are logged (`reauth_failed`) and rate limited (5/min).
+- **Password change** logs out every other device but keeps the current one; **log out everywhere** revokes every session.
+- **Email change** only takes effect after the link sent to the *new* address is clicked, and the *old* address is told (with the new one masked). The response is the same whether the new address is free or taken.
+- **Account deletion** removes the account and all personal data by database cascade (shelf, custom works, follows, activity events, tokens, reminders); security events stay for incident review but lose the link to the person.
+- **Data export** (GDPR right of access) returns everything stored about the user as a JSON download, without password hashes, token hashes or IP hashes, and is rate limited (3/min).
+- Known limit: access tokens are stateless, so a revoked session can keep working for up to 15 minutes until its access token expires.
+
 ### Brute force
 - 5 failed logins → account locked for 15 minutes; during lockout even the correct password is rejected.
 - Every failure, lockout and success is written to `security_events`.

@@ -45,6 +45,76 @@ def signup_attempt_for_existing_account(to: str) -> EmailMessage:
     )
 
 
+def mask_email(address: str) -> str:
+    name, _, domain = address.partition("@")
+    return f"{name[:1]}***@{domain}"
+
+
+def password_reset(to: str, token: str) -> EmailMessage:
+    return EmailMessage(
+        to=to,
+        subject="Reset your My World password",
+        text=(
+            "Someone asked to reset the password of your My World account.\n\n"
+            "Choose a new password with this link (valid for 30 minutes, works once):\n"
+            f"{_link('/reset-password', token)}\n\n"
+            "If this was not you, ignore this email: your password stays the same."
+            f"{SIGN_OFF}"
+        ),
+    )
+
+
+def password_changed(to: str) -> EmailMessage:
+    return EmailMessage(
+        to=to,
+        subject="Your My World password was changed",
+        text=(
+            "The password of your My World account was just changed.\n\n"
+            "If this was you, nothing else to do. If it was not, reset your password "
+            "right away with \"Forgot password\" on the login page."
+            f"{SIGN_OFF}"
+        ),
+    )
+
+
+def confirm_new_email(to: str, token: str) -> EmailMessage:
+    return EmailMessage(
+        to=to,
+        subject="Confirm your new email for My World",
+        text=(
+            "You asked to use this address for your My World account.\n\n"
+            "Confirm it with this link (valid for 1 hour):\n"
+            f"{_link('/confirm-email-change', token)}\n\n"
+            "If you did not ask for this, ignore this email."
+            f"{SIGN_OFF}"
+        ),
+    )
+
+
+def email_changed(to: str, new_address: str) -> EmailMessage:
+    return EmailMessage(
+        to=to,
+        subject="Your My World email address was changed",
+        text=(
+            f"Your My World account now uses {mask_email(new_address)} instead of this address.\n\n"
+            "If this was not you, reply to this email or contact us right away."
+            f"{SIGN_OFF}"
+        ),
+    )
+
+
+def account_deleted(to: str) -> EmailMessage:
+    return EmailMessage(
+        to=to,
+        subject="Your My World account was deleted",
+        text=(
+            "Your My World account and everything on your shelf have been deleted.\n\n"
+            "Thank you for using My World."
+            f"{SIGN_OFF}"
+        ),
+    )
+
+
 def _when(release_date: date) -> str:
     return release_date.strftime("%A, %d %B %Y")
 
